@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { ImStatsBars } from 'react-icons/im'
+import { FaRegTrashAlt } from 'react-icons/fa'
 import { currencyFormatter } from '@/lib/utils'
 import ExpenseCategoryItem from '@/components/ExpenseCategoryItem'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
@@ -8,7 +9,7 @@ import { Doughnut } from 'react-chartjs-2'
 import Modal from '@/components/Modal'
 
 import { db } from '@/lib/firebase'
-import { collection, addDoc, getDocs } from 'firebase/firestore'
+import { collection, addDoc, getDocs, doc, deleteDoc } from 'firebase/firestore'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -45,8 +46,16 @@ const DUMMY_DATA = [
   },
 ]
 
+interface Income {
+  id: string
+  description: string
+  amount: number
+  createdAt: Date
+}
+
 export default function Home() {
-  const [income, setIncome] = useState()
+  const [income, setIncome] = useState<Income[]>([])
+  console.log(income)
   const amountRef = useRef<HTMLInputElement>(null)
   const DescriptionRef = useRef<HTMLInputElement>(null)
   const [showIncomeModal, setShowIncomeModal] = useState(false)
@@ -55,22 +64,41 @@ export default function Home() {
   const addIncomeHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const newIncome = {
-      amount: amountRef.current?.value,
-      description: DescriptionRef.current?.value,
+      amount: parseFloat(amountRef.current!.value),
+      description: DescriptionRef.current!.value,
       createdAt: new Date(),
     }
-    // console.log(newIncome)
+
     try {
       const docSnap = await addDoc(collectionRef, newIncome)
-      console.log(docSnap.id)
+      // console.log(docSnap.id)
+      setIncome((prev) => [{ id: docSnap.id, ...newIncome }, ...prev])
+      amountRef.current!.value = ''
+      DescriptionRef.current!.value = ''
     } catch (error) {
       console.log(error)
     }
   }
+  const deleteIncomeHandler = async (id: string) => {
+    const docRef = doc(db, 'income', id)
+    try {
+      await deleteDoc(docRef)
+      setIncome((prev) => {
+        return prev.filter((i) => i.id !== id)
+      })
+    } catch (error) {}
+  }
   const getIncomes = async () => {
     const docSnap = await getDocs(collectionRef)
-    const data = docSnap.docs.map((doc) => doc.data())
-    console.log(data)
+    const data = docSnap.docs.map((doc) => {
+      return {
+        id: doc.id,
+        description: doc.data().description,
+        amount: doc.data().amount,
+        createdAt: new Date(doc.data().createdAt.toMillis()),
+      }
+    })
+    setIncome(data)
   }
   useEffect(() => {
     getIncomes()
@@ -106,8 +134,32 @@ export default function Home() {
             Add Entry
           </button>
         </form>
-        <div>
-          <h3>Income history</h3>
+        <div className="container overflow-auto">
+          <div className="flex flex-col gap-4 mt-6">
+            <h3 className="tex-2xl font-semibold">Income history</h3>
+            <div className="flex flex-col gap-5">
+              {income.map((i) => (
+                <div key={i.id} className="flex justify-between items-center">
+                  <div>
+                    <p className="text-semibold">{i.description}</p>
+                    <small className="text-xs">
+                      {i.createdAt.toISOString()}
+                    </small>
+                  </div>
+                  <p className="flex items-center gap-2">
+                    {currencyFormatter('USD', i.amount)}
+                    <button
+                      onClick={() => {
+                        deleteIncomeHandler(i.id)
+                      }}
+                    >
+                      <FaRegTrashAlt />
+                    </button>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Modal>
 
