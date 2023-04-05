@@ -6,67 +6,63 @@ import { currencyFormatter } from '@/lib/utils'
 import ExpenseCategoryItem from '@/components/ExpenseCategoryItem'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
-
-import { db } from '@/lib/firebase'
-import { collection, addDoc, getDocs, doc, deleteDoc } from 'firebase/firestore'
+import { useDispatch, useSelector } from 'react-redux'
 import AddIncomeModal from '@/components/modals/AddIncomeModal'
+import { getExpenses } from './features/expensesSlice'
 import { Income } from './models'
+import AddExpensesModal from '@/components/modals/AddExpensesModal'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
-
-const DUMMY_DATA = [
-  {
-    id: 1,
-    title: 'Entertainment',
-    color: 'purple',
-    total: 500,
-  },
-  {
-    id: 2,
-    title: 'Gass',
-    color: 'pink',
-    total: 200,
-  },
-  {
-    id: 3,
-    title: 'Fuel',
-    color: 'violet',
-    total: 1200,
-  },
-  {
-    id: 4,
-    title: 'Movies',
-    color: 'orange',
-    total: 800,
-  },
-  {
-    id: 5,
-    title: 'Holiday',
-    color: 'red',
-    total: 2000,
-  },
-]
 
 export default function Home() {
   const [income, setIncome] = useState<Income[]>([])
   const [showIncomeModal, setShowIncomeModal] = useState(false)
-  console.log(income)
+  const [showAddExpensesModal, setShowAddExpensesModal] = useState(false)
+  const [balance, setBalance] = useState(0)
+  const { expenses, loading } = useSelector((state) => state.expenses)
+  const { incomes } = useSelector((state) => state.incomes)
+  const dispatch = useDispatch()
+  console.log(incomes)
+  console.log(expenses)
 
+  useEffect(() => {
+    dispatch(getExpenses())
+  }, [])
+  useEffect(() => {
+    const newBanlance =
+      incomes.reduce((total, i) => {
+        return total + i.amount
+      }, 0) -
+      expenses.reduce((total, i) => {
+        return total + i.total
+      }, 0)
+    setBalance(newBanlance)
+  }, [expenses, incomes])
   return (
     <>
       {/* Modal */}
       <AddIncomeModal show={showIncomeModal} setShow={setShowIncomeModal} />
-
+      <AddExpensesModal
+        show={showAddExpensesModal}
+        onClose={setShowAddExpensesModal}
+      />
       <main className="container max-w-2xl px-6 py-6 mx-auto">
         <section className="py-3">
           <small className="text-gray-400 text-md">My Balance</small>
           <h2 className="text-4xl font-bold">
-            {currencyFormatter('USD', 1000000)}
+            {currencyFormatter('USD', balance)}
           </h2>
         </section>
 
         <section className="flex items-center gap-2 py-3">
-          <button className="btn btn-primary">+ Expenses</button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setShowAddExpensesModal(true)
+            }}
+          >
+            + Expenses
+          </button>
           <button
             className="btn btn-primary-ouline"
             onClick={() => {
@@ -81,7 +77,7 @@ export default function Home() {
         <section>
           <h3>My Expenses</h3>
           <div className="flex flex-col gap-4">
-            {DUMMY_DATA.map((expense) => (
+            {expenses.map((expense) => (
               <ExpenseCategoryItem
                 color={expense.color}
                 title={expense.title}
@@ -98,12 +94,12 @@ export default function Home() {
           <div className="w-1/2 mx-auto">
             <Doughnut
               data={{
-                labels: DUMMY_DATA.map((expense) => expense.title),
+                labels: expenses.map((expense) => expense.title),
                 datasets: [
                   {
                     label: 'Expense',
-                    data: DUMMY_DATA.map((expense) => expense.total),
-                    backgroundColor: DUMMY_DATA.map((expense) => expense.color),
+                    data: expenses.map((expense) => expense.total),
+                    backgroundColor: expenses.map((expense) => expense.color),
                     borderColor: ['#181818'],
                     borderWidth: 5,
                   },
