@@ -8,12 +8,26 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  query,
+  where,
 } from 'firebase/firestore'
-import { Income } from '@/app/models'
+import { useSelector } from 'react-redux'
 
-const initialState = {
+interface initialStateExpense {
+  expenses: Expense[]
+  loading: boolean
+  currentExpense: Expense
+}
+const initialState: initialStateExpense = {
   expenses: [],
   loading: false,
+  currentExpense: {
+    id: '',
+    color: '',
+    title: '',
+    total: 0,
+    items: [],
+  },
 }
 
 export const getExpenses = createAsyncThunk(
@@ -21,7 +35,8 @@ export const getExpenses = createAsyncThunk(
   async (payload, { rejectWithValue, getState, dispatch }) => {
     try {
       const collectionRef = collection(db, 'expenses')
-      const docSnap = await getDocs(collectionRef)
+      const q = query(collectionRef, where('uid', '==', payload))
+      const docSnap = await getDocs(q)
       const data = docSnap.docs.map((doc) => {
         return {
           id: doc.id,
@@ -36,7 +51,7 @@ export const getExpenses = createAsyncThunk(
   }
 )
 
-export const addExpenseItem = createAsyncThunk(
+export const updateExpenseItem = createAsyncThunk(
   'expenses/updateexpenseitem',
   async (payload: Expense, { rejectWithValue, getState, dispatch }) => {
     try {
@@ -55,9 +70,27 @@ export const addExpenseCatgory = createAsyncThunk(
   async (payload, { rejectWithValue, getState, dispatch }) => {
     try {
       const collectionRef = collection(db, 'expenses')
-      const docSnap = await addDoc(collectionRef, { ...payload, items: [] })
+      const docSnap = await addDoc(collectionRef, {
+        uid: user.uid,
+        ...payload,
+        items: [],
+      })
 
-      return { id: docSnap.id, ...payload }
+      return { id: docSnap.id, ...payload, items: [] }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+)
+
+export const deleteExpenses = createAsyncThunk(
+  'expenses/deleteexpenses',
+  async (id: string, { rejectWithValue, getState, dispatch }) => {
+    try {
+      const collectionRef = doc(db, 'expenses', id)
+      await deleteDoc(collectionRef)
+      console.log(id, 'id')
+      return id
     } catch (error) {
       console.log(error)
     }
@@ -67,7 +100,11 @@ export const addExpenseCatgory = createAsyncThunk(
 const expensesSlice = createSlice({
   name: 'incomes',
   initialState,
-  reducers: {},
+  reducers: {
+    setCurrentExpense: (state, action) => {
+      state.currentExpense = action.payload
+    },
+  },
   extraReducers: (builder) => {
     builder.addCase(getExpenses.pending, (state) => {
       state.loading = true
@@ -80,18 +117,33 @@ const expensesSlice = createSlice({
       state.loading = false
       console.log(action.payload)
     })
-    // add expense item
-    builder.addCase(addExpenseItem.pending, (state) => {
+
+    // deleteexpenses
+    builder.addCase(deleteExpenses.pending, (state) => {
       state.loading = true
     })
-    builder.addCase(addExpenseItem.fulfilled, (state, action) => {
+    builder.addCase(deleteExpenses.fulfilled, (state, action) => {
+      state.loading = false
+      state.expenses = state.expenses.filter(
+        (expense) => expense.id !== action.payload
+      )
+    })
+    builder.addCase(deleteExpenses.rejected, (state, action) => {
+      state.loading = false
+      console.log(action.payload)
+    })
+    // add expense item
+    builder.addCase(updateExpenseItem.pending, (state) => {
+      state.loading = true
+    })
+    builder.addCase(updateExpenseItem.fulfilled, (state, action) => {
       state.loading = false
 
       state.expenses = state.expenses.map((expense) =>
         expense.id === action.payload.id ? action.payload : expense
       )
     })
-    builder.addCase(addExpenseItem.rejected, (state, action) => {
+    builder.addCase(updateExpenseItem.rejected, (state, action) => {
       state.loading = false
       console.log(action.payload)
     })
@@ -113,4 +165,5 @@ const expensesSlice = createSlice({
 })
 
 const expenseReducer = expensesSlice.reducer
+export const { setCurrentExpense } = expensesSlice.actions
 export default expenseReducer

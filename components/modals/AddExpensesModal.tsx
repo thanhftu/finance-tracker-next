@@ -5,7 +5,11 @@ import Modal from '../Modal'
 import { Expense } from '@/app/models'
 
 import { v4 as uuidv4 } from 'uuid'
-import { addExpenseCatgory, addExpenseItem } from '@/app/features/expensesSlice'
+import {
+  addExpenseCatgory,
+  updateExpenseItem,
+} from '@/app/features/expensesSlice'
+import { Timestamp } from 'firebase/firestore'
 
 interface Props {
   show: boolean
@@ -17,8 +21,9 @@ function AddExpensesModal({ show, onClose }: Props) {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
   const { expenses, loading } = useSelector((state) => state.expenses)
-  const titleRef = useRef()
-  const colorRef = useRef()
+  const { user } = useSelector((state) => state.users)
+  const titleRef = useRef<HTMLInputElement>()
+  const colorRef = useRef<HTMLInputElement>()
   const dispatch = useDispatch()
 
   const addExpenseItemHandler = (expenseCategoryId: string) => {
@@ -27,29 +32,30 @@ function AddExpensesModal({ show, onClose }: Props) {
     })
     const newExpense: Expense = {
       id: selectedCategory,
+      uid: user.uid,
       color: expense.color,
       title: expense.title,
       total: expense.total + +expenseAmont,
       items: [
-        ...expense.items,
         {
           amount: +expenseAmont,
-          createdAt: new Date(),
+          createdAt: Timestamp.fromDate(new Date()),
           id: uuidv4(),
         },
+        ...expense.items,
       ],
     }
-    dispatch(addExpenseItem(newExpense))
+    dispatch(updateExpenseItem(newExpense))
 
     console.log(newExpense, 'newexpense')
     setExpenseAmount('')
-    setSelectedCategory(null)
+    setSelectedCategory('')
     onClose(false)
   }
 
   const addExpenseCatgoryHandler = async () => {
-    const title = titleRef.current.value
-    const color = colorRef.current.value
+    const title = titleRef.current!.value
+    const color = colorRef.current!.value
     const newExpenseCategory = {
       title: title,
       color: color,

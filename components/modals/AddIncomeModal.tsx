@@ -6,6 +6,7 @@ import { currencyFormatter } from '@/lib/utils'
 import { useDispatch, useSelector } from 'react-redux'
 import { getIncomes, deleteIncome, addIncome } from '@/app/features/incomeSlice'
 import { AppDispatch } from '@/app/store'
+import { Timestamp } from 'firebase/firestore'
 
 interface Props {
   show: boolean
@@ -17,7 +18,7 @@ interface RootState {
     id: string
     amount: number
     description: string
-    createdAt: Date
+    createdAt: Timestamp
   }[]
   loading: boolean
 }
@@ -27,14 +28,16 @@ function AddIncomeModal({ show, setShow }: Props) {
   const dispatch: AppDispatch = useDispatch()
 
   const { incomes, loading } = useSelector((state) => state.incomes)
-  //   console.log(incomes, 'income')
-  console.log(loading, 'loading')
+  const { user } = useSelector((state) => state.users)
+  console.log(incomes, 'income')
+
   const addIncomeHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const newIncome = {
+      uid: user.uid,
       amount: parseFloat(amountRef.current!.value),
       description: DescriptionRef.current!.value,
-      createdAt: new Date(),
+      createdAt: Timestamp.fromDate(new Date()),
     }
     dispatch(addIncome(newIncome))
     amountRef.current!.value = ''
@@ -42,8 +45,9 @@ function AddIncomeModal({ show, setShow }: Props) {
   }
 
   useEffect(() => {
-    dispatch(getIncomes())
-  }, [])
+    if (!user) return
+    dispatch(getIncomes(user.uid))
+  }, [user])
   return (
     <Modal show={show} onClose={setShow}>
       <form onSubmit={addIncomeHandler} className="flex flex-col gap-4">
@@ -81,7 +85,11 @@ function AddIncomeModal({ show, setShow }: Props) {
               <div key={i.id} className="flex justify-between items-center">
                 <div>
                   <p className="text-semibold">{i.description}</p>
-                  <small className="text-xs">{i.createdAt.toISOString()}</small>
+                  <small className="text-xs">
+                    {i.createdAt.toMillis()
+                      ? new Date(i.createdAt.toMillis()).toISOString()
+                      : i.createdAt.toISOString()}
+                  </small>
                 </div>
                 <div className="flex items-center gap-2">
                   <p>{currencyFormatter('USD', i.amount)}</p>

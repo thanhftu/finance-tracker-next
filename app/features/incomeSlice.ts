@@ -1,6 +1,15 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { db } from '@/lib/firebase'
-import { collection, addDoc, getDocs, doc, deleteDoc } from 'firebase/firestore'
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  deleteDoc,
+  Timestamp,
+  query,
+  where,
+} from 'firebase/firestore'
 import { Income } from '@/app/models'
 import { currencyFormatter } from '@/lib/utils'
 
@@ -14,13 +23,12 @@ export const getIncomes = createAsyncThunk(
   async (payload, { rejectWithValue, getState, dispatch }) => {
     try {
       const collectionRef = collection(db, 'income')
-      const docSnap = await getDocs(collectionRef)
+      const q = query(collectionRef, where('uid', '==', payload))
+      const docSnap = await getDocs(q)
       const data = docSnap.docs.map((doc) => {
         return {
           id: doc.id,
-          description: doc.data().description,
-          amount: doc.data().amount,
-          createdAt: new Date(doc.data().createdAt.toMillis()),
+          ...doc.data(),
         }
       })
 
@@ -50,7 +58,7 @@ export const deleteIncome = createAsyncThunk(
 interface Payload {
   description: string
   amount: number
-  createdAt: Date
+  createdAt: Timestamp
 }
 export const addIncome = createAsyncThunk(
   'incomes/addincome',
