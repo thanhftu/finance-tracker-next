@@ -13,12 +13,12 @@ import { db } from '@/lib/firebase'
 import userState from '@/lib/firebase/userState'
 
 interface User {
-  user: null
+  authUser: null
   loading: boolean
 }
 
 const initialState = {
-  user: null,
+  authUser: null,
   loading: false,
 }
 
@@ -40,14 +40,16 @@ export const googleLoginHandler = createAsyncThunk(
 const usersSlice = createSlice({
   name: 'users',
   initialState,
-  reducers: {},
+  reducers: {
+    setUser: (state, action) => (state.authUser = action.payload),
+  },
   extraReducers: (builder) => {
     builder.addCase(googleLoginHandler.pending, (state) => {
       state.loading = true
     })
     builder.addCase(googleLoginHandler.fulfilled, (state, action) => {
       state.loading = false
-      state.user = action.payload
+      state.authUser = action.payload
     })
     builder.addCase(googleLoginHandler.rejected, (state, action) => {
       state.loading = false
@@ -56,5 +58,5 @@ const usersSlice = createSlice({
 })
 
 const userReducer = usersSlice.reducer
-
+export const { setUser } = usersSlice.actions
 export default userReducer

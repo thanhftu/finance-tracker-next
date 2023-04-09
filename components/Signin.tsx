@@ -1,10 +1,19 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { FcGoogle } from 'react-icons/fc'
 import { useDispatch } from 'react-redux'
 import { googleLoginHandler } from '@/app/features/usersSlice'
+import { useAuthState } from 'react-firebase-hooks/auth'
+import { auth } from '@/lib/firebase'
+import { setUser } from '@/app/features/usersSlice'
 
 function Signin() {
   const dispatch = useDispatch()
+  const [user, loading, error] = useAuthState(auth)
+  useEffect(() => {
+    if (user) {
+      dispatch(setUser(user))
+    }
+  })
   const loginHandler = () => {
     dispatch(googleLoginHandler())
   }
